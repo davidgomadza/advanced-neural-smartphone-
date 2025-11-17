@@ -1,0 +1,1868 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AugVT Neural Interface — Brain-Controlled WebRTC Mobile System</title>
+  <style>
+    :root{
+      --bg:#0f1724;--card:#0b1220;--accent:#6ee7b7;--muted:#9aa7b2;
+      --glass:rgba(255,255,255,0.04);--danger:#ef4444;--warning:#f59e0b;
+      --success:#10b981;--neural:#8b5cf6;--webrtc:#3b82f6;
+    }
+    *{box-sizing:border-box;}
+    html,body{height:100%;margin:0;font-family:'Inter',system-ui,Segoe UI,Roboto,Arial;color:#e6eef6;background:linear-gradient(180deg,#071025 0%, #071827 60%);}
+    
+    .app{max-width:1800px;margin:20px auto;padding:20px;border-radius:12px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));box-shadow:0 8px 30px rgba(2,6,23,0.6);}
+    
+    header{display:flex;align-items:center;gap:16px;margin-bottom:20px;flex-wrap:wrap;}
+    h1{font-size:22px;margin:0;background:linear-gradient(90deg,#6ee7b7,#8b5cf6,#3b82f6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+    .meta{color:var(--muted);font-size:13px;line-height:1.5;}
+    
+    /* Main Grid: Neural Input | Visualizer | Contacts/WebRTC | Xcover Testing */
+    .grid{display:grid;grid-template-columns:320px 1fr 380px 340px;gap:16px;}
+    
+    .card{background:var(--card);padding:16px;border-radius:10px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.03);}
+    .card h2{font-size:15px;margin:0 0 12px 0;color:var(--accent);display:flex;align-items:center;gap:8px;}
+    
+    label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:500;}
+    input[type=text],input[type=number],select,textarea{width:100%;padding:9px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:var(--glass);color:inherit;font-size:13px;transition:border-color 0.2s;}
+    input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);}
+    
+    button{background:linear-gradient(135deg,rgba(110,231,183,0.1),rgba(139,92,246,0.1));padding:9px 14px;border-radius:8px;border:1px solid rgba(110,231,183,0.3);color:var(--accent);cursor:pointer;font-size:13px;font-weight:500;transition:all 0.2s;}
+    button:hover{border-color:var(--accent);background:rgba(110,231,183,0.15);transform:translateY(-1px);}
+    button:active{transform:translateY(0);}
+    button:disabled{opacity:0.5;cursor:not-allowed;transform:none;}
+    button.danger{border-color:rgba(239,68,68,0.3);color:var(--danger);background:linear-gradient(135deg,rgba(239,68,68,0.1),rgba(239,68,68,0.05));}
+    button.warning{border-color:rgba(245,158,11,0.3);color:var(--warning);background:linear-gradient(135deg,rgba(245,158,11,0.1),rgba(245,158,11,0.05));}
+    button.success{border-color:rgba(16,185,129,0.3);color:var(--success);background:linear-gradient(135deg,rgba(16,185,129,0.1),rgba(16,185,129,0.05));}
+    button.webrtc{border-color:rgba(59,130,246,0.3);color:var(--webrtc);background:linear-gradient(135deg,rgba(59,130,246,0.1),rgba(59,130,246,0.05));}
+    
+    .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+    
+    .log{height:140px;overflow:auto;padding:10px;background:rgba(0,0,0,0.3);border-radius:8px;font-family:'Courier New',monospace;font-size:11px;color:#a0f0d0;border:1px solid rgba(255,255,255,0.05);}
+    .log::-webkit-scrollbar{width:6px;}
+    .log::-webkit-scrollbar-track{background:rgba(0,0,0,0.2);}
+    .log::-webkit-scrollbar-thumb{background:rgba(110,231,183,0.3);border-radius:3px;}
+    
+    canvas.wave{width:100%;height:140px;background:linear-gradient(180deg,#041021,#071424);border-radius:8px;border:1px solid rgba(255,255,255,0.05);}
+    
+    .pill{display:inline-block;padding:6px 12px;border-radius:999px;background:rgba(139,92,246,0.15);font-size:12px;border:1px solid rgba(139,92,246,0.3);}
+    
+    .status-indicator{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:6px;animation:pulse 2s infinite;}
+    .status-active{background:var(--success);box-shadow:0 0 8px var(--success);}
+    .status-inactive{background:var(--muted);}
+    .status-calling{background:var(--warning);box-shadow:0 0 8px var(--warning);}
+    .status-connected{background:var(--webrtc);box-shadow:0 0 8px var(--webrtc);}
+    @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.5;}}
+    
+    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+    
+    .codec-panel{background:rgba(139,92,246,0.05);padding:12px;border-radius:8px;border:1px solid rgba(139,92,246,0.2);margin-top:12px;}
+    
+    .neural-meter{height:30px;background:rgba(0,0,0,0.3);border-radius:6px;overflow:hidden;margin-top:8px;position:relative;}
+    .neural-meter-fill{height:100%;background:linear-gradient(90deg,var(--neural),var(--accent));transition:width 0.3s;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;}
+    
+    .frequency-display{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px;}
+    .freq-box{background:rgba(0,0,0,0.25);padding:8px;border-radius:6px;text-align:center;}
+    .freq-box .value{font-size:18px;font-weight:700;color:var(--accent);}
+    .freq-box .label{font-size:10px;color:var(--muted);margin-top:2px;}
+    
+    .section-divider{height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.1),transparent);margin:14px 0;}
+    
+    /* Contact List Styles */
+    .contact-list{max-height:200px;overflow:auto;margin-top:10px;}
+    .contact-item{padding:10px;background:rgba(255,255,255,0.03);border-radius:8px;margin-bottom:6px;border:1px solid rgba(255,255,255,0.02);transition:all 0.2s;cursor:pointer;}
+    .contact-item:hover{background:rgba(110,231,183,0.05);border-color:rgba(110,231,183,0.2);}
+    .contact-item.selected{background:rgba(59,130,246,0.15);border-color:rgba(59,130,246,0.4);}
+    .contact-item .name{font-weight:600;font-size:13px;}
+    .contact-item .token{font-size:10px;color:var(--muted);font-family:monospace;margin-top:3px;}
+    .contact-item .actions{margin-top:6px;display:flex;gap:4px;}
+    .contact-item .actions button{padding:4px 8px;font-size:11px;}
+    
+    /* Chat/Messages Styles */
+    .chat-area{height:250px;overflow:auto;padding:10px;background:rgba(0,0,0,0.25);border-radius:8px;border:1px solid rgba(255,255,255,0.05);margin-top:10px;}
+    .message{padding:8px 12px;margin-bottom:8px;border-radius:8px;max-width:80%;word-wrap:break-word;}
+    .message.sent{background:rgba(110,231,183,0.15);margin-left:auto;text-align:right;border:1px solid rgba(110,231,183,0.3);}
+    .message.received{background:rgba(59,130,246,0.15);margin-right:auto;border:1px solid rgba(59,130,246,0.3);}
+    .message .time{font-size:10px;color:var(--muted);margin-top:4px;}
+    .message .text{font-size:13px;line-height:1.4;}
+    
+    .message-input{display:flex;gap:8px;margin-top:10px;}
+    .message-input input{flex:1;}
+    
+    /* WebRTC Signaling */
+    .signaling-box{background:rgba(0,0,0,0.3);padding:10px;border-radius:8px;font-family:monospace;font-size:10px;max-height:120px;overflow:auto;margin-top:8px;border:1px solid rgba(59,130,246,0.2);}
+    
+    /* Xcover Controls */
+    .xcover-controls{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+    .xcover-controls button{margin:0;font-size:11px;padding:7px 9px;}
+    
+    /* Apps list */
+    .apps{display:flex;flex-direction:column;gap:6px;max-height:180px;overflow:auto;}
+    .app-item{display:flex;justify-content:space-between;align-items:center;padding:10px;background:rgba(255,255,255,0.03);border-radius:8px;border:1px solid rgba(255,255,255,0.02);transition:all 0.2s;}
+    .app-item:hover{background:rgba(110,231,183,0.05);border-color:rgba(110,231,183,0.2);}
+    
+    footer{margin-top:18px;color:var(--muted);font-size:11px;text-align:center;padding:12px;background:rgba(0,0,0,0.2);border-radius:8px;}
+    
+    .webrtc-status{display:flex;gap:12px;padding:10px;background:rgba(59,130,246,0.05);border-radius:8px;border:1px solid rgba(59,130,246,0.2);margin-top:10px;}
+    .webrtc-status .item{flex:1;text-align:center;}
+    .webrtc-status .item .label{font-size:10px;color:var(--muted);}
+    .webrtc-status .item .value{font-size:13px;font-weight:600;margin-top:3px;}
+    
+    /* Call Screen Overlay */
+    .call-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.95);display:none;z-index:1000;align-items:center;justify-content:center;}
+    .call-overlay.active{display:flex;}
+    .call-screen{background:linear-gradient(135deg,#0b1220,#1a1f35);padding:40px;border-radius:16px;text-align:center;border:2px solid rgba(110,231,183,0.3);max-width:400px;}
+    .call-screen .caller{font-size:28px;font-weight:700;margin-bottom:20px;}
+    .call-screen .status{font-size:16px;color:var(--muted);margin-bottom:30px;}
+    .call-screen .controls{display:flex;gap:16px;justify-content:center;}
+    .call-screen .controls button{padding:14px 24px;font-size:15px;}
+    
+    @media (max-width: 1600px) {
+      .grid{grid-template-columns:1fr 1fr;grid-template-rows:auto auto;}
+      .grid > :nth-child(1){grid-row:1;}
+      .grid > :nth-child(2){grid-row:1;}
+      .grid > :nth-child(3){grid-row:2;}
+      .grid > :nth-child(4){grid-row:2;}
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div style="width:58px;height:58px;border-radius:12px;background:linear-gradient(135deg,#06263a,#8b5cf6,#3b82f6);display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:18px;">AUG</div>
+      <div style="flex:1;">
+        <h1>AugVT Neural Interface — Brain-Controlled WebRTC Mobile System</h1>
+        <div class="meta">
+          Advanced Neural Processing + Peer-to-Peer Communication • No Servers Required<br/>
+          Think-to-Call • Brain-Controlled Messaging • Neural WebRTC Signaling • Xcover4 Integration
+        </div>
+      </div>
+      <div style="text-align:right;">
+        <div class="pill">
+          <span class="status-indicator status-inactive" id="systemStatus"></span>
+          NEURAL + WebRTC
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;">David Gomadza • V3.0</div>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- COLUMN 1: Neural Input & DAC -->
+      <section class="card">
+        <h2>🧠 Neural Input Processor</h2>
+        
+        <label>Brain Thought Command</label>
+        <textarea id="thoughtInput" rows="3" placeholder="Think: 'call dominika', 'send message hello', 'open camera', 'create webrtc offer'"></textarea>
+
+        <div style="height:10px;"></div>
+        <div class="row">
+          <button id="btnDecode" class="success">▶ AANIC</button>
+          <button id="btnCNB" class="warning">▶ CNB</button>
+          <button id="btnNeuralAction" class="webrtc">⚡ Execute</button>
+        </div>
+
+        <div class="section-divider"></div>
+
+        <h2>📡 Digital Analogue Codec</h2>
+        
+        <div class="controls">
+          <button id="attachDA" class="success">🔗 Attach</button>
+          <button id="detachDA" class="danger">⛓️‍💥 Detach</button>
+          <button id="calibrateDA" class="warning">⚙️ Calibrate</button>
+        </div>
+
+        <label style="margin-top:12px;">Neural Frequency</label>
+        <select id="neuralFreq">
+          <option value="8">Delta (8 Hz)</option>
+          <option value="12">Theta (12 Hz)</option>
+          <option value="20">Alpha (20 Hz)</option>
+          <option value="40">Gamma (40 Hz)</option>
+          <option value="50" selected>Gamma+ (50 Hz)</option>
+          <option value="60">Hyper-Gamma (60 Hz)</option>
+        </select>
+
+        <div class="codec-panel">
+          <label>Codec Status</label>
+          <div id="codecStatus" style="font-size:12px;color:var(--accent);">⚪ Standby</div>
+          <div class="neural-meter">
+            <div class="neural-meter-fill" id="neuralMeter" style="width:0%;">0%</div>
+          </div>
+        </div>
+
+        <div style="height:10px;"></div>
+        <label>TX Power (mW)</label>
+        <input type="number" id="txPower" value="5" min="1" max="20" />
+
+        <div class="section-divider"></div>
+
+        <label>AANIC Output</label>
+        <div class="log" id="aanicOutput">🟢 AANIC ready...</div>
+
+        <label style="margin-top:10px;">CNB Output</label>
+        <div class="log" id="cnbOutput">🟡 CNB ready...</div>
+      </section>
+
+      <!-- COLUMN 2: Visualizer & System -->
+      <section class="card">
+        <h2>📊 Neural Visualizer</h2>
+        <canvas id="wave" class="wave"></canvas>
+        
+        <div class="frequency-display">
+          <div class="freq-box">
+            <div class="value" id="impulseCode">--</div>
+            <div class="label">Impulse</div>
+          </div>
+          <div class="freq-box">
+            <div class="value" id="actionPotential">--</div>
+            <div class="label">Action (mV)</div>
+          </div>
+          <div class="freq-box">
+            <div class="value" id="neuralSync">0%</div>
+            <div class="label">Sync</div>
+          </div>
+        </div>
+
+        <div class="section-divider"></div>
+
+        <h2>📱 Neural App Matches</h2>
+        <div class="apps" id="appsList">
+          <div style="padding:20px;text-align:center;color:var(--muted);">Process thought to see matches...</div>
+        </div>
+
+        <div class="section-divider"></div>
+
+        <div class="row">
+          <button id="btnStream">🌊 Stream</button>
+          <button id="btnPlayAudio">🔊 Voice</button>
+          <button id="btnEmergency" class="danger">🚨 Emergency</button>
+          <button id="btnClear">🗑️ Clear</button>
+        </div>
+
+        <div style="height:12px;"></div>
+        <label>System Event Log</label>
+        <div class="log" id="systemLog">🟢 [INIT] Neural-WebRTC system initialized.</div>
+      </section>
+      
+      <!-- COLUMN 3: Contacts & WebRTC -->
+      <section class="card">
+        <h2>👥 Contacts & WebRTC</h2>
+        
+        <div class="row">
+          <input type="text" id="newContactName" placeholder="Contact name" style="flex:1;" />
+          <button id="btnAddContact" class="success">Add</button>
+        </div>
+
+        <div class="contact-list" id="contactList">
+          <!-- Contacts populated here -->
+        </div>
+
+        <div class="section-divider"></div>
+
+        <h2>🔗 WebRTC Status</h2>
+        <div class="webrtc-status">
+          <div class="item">
+            <div class="label">Connection</div>
+            <div class="value" id="connStatus">Disconnected</div>
+          </div>
+          <div class="item">
+            <div class="label">Data Channel</div>
+            <div class="value" id="dcStatus">Closed</div>
+          </div>
+        </div>
+
+        <label style="margin-top:12px;">Active Contact</label>
+        <input type="text" id="activeContact" readonly placeholder="Select a contact..." />
+
+        <div class="row" style="margin-top:10px;">
+          <button id="btnCreateOffer" class="webrtc">📤 Create Offer</button>
+          <button id="btnCreateAnswer" class="webrtc">📥 Create Answer</button>
+        </div>
+
+        <label style="margin-top:12px;">Signaling Data</label>
+        <div class="signaling-box" id="signalingBox">Click Create Offer/Answer to generate...</div>
+
+        <div class="row" style="margin-top:10px;">
+          <button id="btnCopySignal">📋 Copy</button>
+          <button id="btnPasteSignal">📌 Paste & Connect</button>
+        </div>
+
+        <div class="section-divider"></div>
+
+        <h2>💬 Chat: <span id="chatWith">--</span></h2>
+        <div class="chat-area" id="chatArea">
+          <div style="text-align:center;color:var(--muted);padding:60px 20px;">
+            Select contact and establish connection to chat
+          </div>
+        </div>
+
+        <div class="message-input">
+          <input type="text" id="messageInput" placeholder="Type or think message..." />
+          <button id="btnSendMessage" class="success">Send</button>
+        </div>
+
+        <div class="row" style="margin-top:10px;">
+          <button id="btnStartCall" class="success">📞 Call</button>
+          <button id="btnEndCall" class="danger">📵 End</button>
+          <button id="btnSimulateIncoming" class="warning">📳 Simulate</button>
+        </div>
+      </section>
+      
+      <!-- COLUMN 4: Xcover4 Testing -->
+      <section class="card">
+        <div style="background:linear-gradient(135deg,rgba(239,68,68,0.1),rgba(245,158,11,0.1));padding:12px;border-radius:8px;border:1px solid rgba(239,68,68,0.3);">
+          <h2 style="margin:0 0 8px 0;color:#fca5a5;">🔬 Xcover4 Direct</h2>
+          <div class="meta">Neural Key Code Testing</div>
+        </div>
+        
+        <div style="height:12px;"></div>
+        <label>🔐 System</label>
+        <div class="xcover-controls">
+          <button data-key="3" data-code="0898286">Power On</button>
+          <button data-key="6" data-code="0868283">Enter PIN</button>
+        </div>
+
+        <label style="margin-top:10px;">📞 Phone</label>
+        <div class="xcover-controls">
+          <button data-key="7" data-code="0828728">Dial</button>
+          <button data-key="9" data-code="08286386">Call</button>
+        </div>
+
+        <label style="margin-top:10px;">📧 Messages</label>
+        <div class="xcover-controls">
+          <button data-key="14" data-code="08284814">Open</button>
+          <button data-key="15" data-code="08284815">Compose</button>
+          <button data-key="21" data-code="08284821">Type</button>
+          <button data-key="22" data-code="08284822">Send</button>
+        </div>
+
+        <label style="margin-top:10px;">📸 Camera</label>
+        <div class="xcover-controls">
+          <button data-key="23" data-code="08284823">Open</button>
+          <button data-key="26" data-code="08284826">Selfie</button>
+        </div>
+
+        <label style="margin-top:10px;">🎵 Media</label>
+        <div class="xcover-controls">
+          <button data-key="34" data-code="08284829">Music</button>
+          <button data-key="35" data-code="08284830">Play</button>
+          <button data-key="36" data-code="08284831">Stop</button>
+          <button data-key="1" data-code="02898678">EM Clean</button>
+        </div>
+
+        <label style="margin-top:10px;">🧮 Utility</label>
+        <div class="xcover-controls">
+          <button data-key="30" data-code="08284827">Calc</button>
+          <button data-key="39" data-code="08284834">Voice Rec</button>
+        </div>
+
+        <label style="margin-top:10px;">⚙️ Nav</label>
+        <div class="xcover-controls">
+          <button data-key="13" data-code="08284813">Return</button>
+          <button data-key="47" data-code="08284842">Power Off</button>
+        </div>
+
+        <div class="section-divider"></div>
+        <label>🧪 Test Log</label>
+        <div class="log" id="prototypeLog" style="height:100px;">🟢 Xcover ready...</div>
+      </section>
+    </div>
+
+    <footer>
+      <strong>AugVT Neural Interface</strong> — Version 3.0 Enhanced<br/>
+      Brain-Controlled WebRTC Mobile System • Neural Processing + P2P Communication<br/>
+      Xcover4 Integration • AANIC/CNB Engines • Digital Analogue Codec<br/>
+      ⚠️ Research prototype - Manual WebRTC signaling - Local storage
+    </footer>
+  </div>
+
+  <!-- Call Overlay -->
+  <div class="call-overlay" id="callOverlay">
+    <div class="call-screen">
+      <div class="caller" id="callerName">Incoming Call...</div>
+      <div class="status" id="callStatus">Ringing...</div>
+      <div class="controls">
+        <button id="btnAcceptCall" class="success">✅ Accept</button>
+        <button id="btnRejectCall" class="danger">❌ Reject</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ==================== GLOBAL STATE & CONFIGURATION ====================
+    
+    const DOM = {
+      // Neural Interface
+      aanicOutput: document.getElementById('aanicOutput'),
+      cnbOutput: document.getElementById('cnbOutput'),
+      systemLog: document.getElementById('systemLog'),
+      prototypeLog: document.getElementById('prototypeLog'),
+      appsList: document.getElementById('appsList'),
+      impulseCode: document.getElementById('impulseCode'),
+      actionPotential: document.getElementById('actionPotential'),
+      neuralSync: document.getElementById('neuralSync'),
+      thoughtInput: document.getElementById('thoughtInput'),
+      waveCanvas: document.getElementById('wave'),
+      codecStatus: document.getElementById('codecStatus'),
+      neuralMeter: document.getElementById('neuralMeter'),
+      systemStatus: document.getElementById('systemStatus'),
+      txPower: document.getElementById('txPower'),
+      neuralFreq: document.getElementById('neuralFreq'),
+      
+      // WebRTC & Contacts
+      newContactName: document.getElementById('newContactName'),
+      contactList: document.getElementById('contactList'),
+      activeContact: document.getElementById('activeContact'),
+      connStatus: document.getElementById('connStatus'),
+      dcStatus: document.getElementById('dcStatus'),
+      signalingBox: document.getElementById('signalingBox'),
+      chatArea: document.getElementById('chatArea'),
+      chatWith: document.getElementById('chatWith'),
+      messageInput: document.getElementById('messageInput'),
+      
+      // Call Overlay
+      callOverlay: document.getElementById('callOverlay'),
+      callerName: document.getElementById('callerName'),
+      callStatus: document.getElementById('callStatus')
+    };
+
+    const ctx = DOM.waveCanvas.getContext('2d');
+    DOM.waveCanvas.width = DOM.waveCanvas.clientWidth * devicePixelRatio;
+    DOM.waveCanvas.height = DOM.waveCanvas.clientHeight * devicePixelRatio;
+
+    // ==================== XCOVER4 KEY CODE MAPPING ====================
+    const XCOVER_KEY_CODES = {
+      1: {code:'02898678', action:'Play EM Wave Cleaner'},
+      3: {code:'0898286', action:'Power On Device'},
+      6: {code:'0868283', action:'Enter PIN 2077'},
+      7: {code:'0828728', action:'Open Phone Dial'},
+      9: {code:'08286386', action:'Dial & Call'},
+      13: {code:'08284813', action:'Press Return'},
+      14: {code:'08284814', action:'Open Messages'},
+      15: {code:'08284815', action:'Compose Message'},
+      21: {code:'08284821', action:'Type Message'},
+      22: {code:'08284822', action:'Send Message'},
+      23: {code:'08284823', action:'Open Camera'},
+      26: {code:'08284826', action:'Take Selfie'},
+      30: {code:'08284827', action:'Open Calculator'},
+      34: {code:'08284829', action:'Open Music'},
+      35: {code:'08284830', action:'Play Track'},
+      36: {code:'08284831', action:'Stop Track'},
+      39: {code:'08284834', action:'Voice Recorder'},
+      47: {code:'08284842', action:'Power Off'}
+    };
+
+    const APP_CODES = {
+      7: 'Phone Dialer',
+      14: 'Messages',
+      23: 'Camera',
+      30: 'Calculator',
+      34: 'Music Player',
+      39: 'Voice Recorder',
+      50: 'WebRTC Call',
+      51: 'WebRTC Chat'
+    };
+
+    const IMPULSE_MAP = {7:62, 14:74, 23:76, 30:68, 34:71, 39:73, 50:80, 51:82};
+
+    // ==================== SESSION STATE ====================
+    let session = {
+      events: [],
+      attachedDA: false,
+      calibrated: false,
+      streaming: false,
+      neuralSyncLevel: 0,
+      lastImpulse: 0,
+      lastActionPotential: 0,
+      
+      // WebRTC State
+      contacts: [],
+      selectedContact: null,
+      peerConnection: null,
+      dataChannel: null,
+      localOffer: null,
+      localAnswer: null,
+      inCall: false,
+      callType: null // 'outgoing', 'incoming'
+    };
+
+    // Load contacts from localStorage
+    function loadContacts() {
+      const stored = localStorage.getItem('augvt_contacts');
+      if (stored) {
+        try {
+          session.contacts = JSON.parse(stored);
+        } catch (e) {
+          session.contacts = [];
+        }
+      }
+    }
+
+    function saveContacts() {
+      localStorage.setItem('augvt_contacts', JSON.stringify(session.contacts));
+    }
+
+    // ==================== LOGGING SYSTEM ====================
+    function log(element, message, type = 'info') {
+      const time = new Date().toLocaleTimeString();
+      const icons = {
+        info: '🔵', 
+        success: '🟢', 
+        warning: '🟡', 
+        error: '🔴', 
+        test: '🧪',
+        webrtc: '🌐',
+        neural: '🧠'
+      };
+      const icon = icons[type] || icons.info;
+      const line = `${time} ${icon} ${message}`;
+      element.innerText = line + '\n' + element.innerText.split('\n').slice(0, 100).join('\n');
+    }
+
+    // ==================== DIGITAL ANALOGUE CODEC ====================
+    class DigitalAnalogueCodec {
+      constructor() {
+        this.attached = false;
+        this.calibrated = false;
+        this.signalStrength = 0;
+        this.interferenceLevel = 0;
+        this.encodingMatrix = this.generateEncodingMatrix();
+      }
+
+      generateEncodingMatrix() {
+        const matrix = [];
+        for (let i = 0; i < 16; i++) {
+          matrix[i] = Math.sin(i * 0.618033) * 1000 + Math.cos(i * 1.414213) * 500;
+        }
+        return matrix;
+      }
+
+      attach() {
+        this.attached = true;
+        this.signalStrength = Math.random() * 30 + 70;
+        log(DOM.systemLog, 'DAC attached successfully', 'success');
+        DOM.codecStatus.innerHTML = '🟢 Connected • ' + Math.round(this.signalStrength) + '%';
+        updateSystemStatus(true);
+        return true;
+      }
+
+      detach() {
+        this.attached = false;
+        this.calibrated = false;
+        this.signalStrength = 0;
+        log(DOM.systemLog, 'DAC detached', 'warning');
+        DOM.codecStatus.innerHTML = '⚪ Disconnected';
+        updateSystemStatus(false);
+      }
+
+      calibrate() {
+        if (!this.attached) {
+          log(DOM.systemLog, 'Cannot calibrate: DAC not attached', 'error');
+          return false;
+        }
+        
+        log(DOM.systemLog, 'Calibrating DAC...', 'info');
+        
+        setTimeout(() => {
+          this.calibrated = true;
+          this.interferenceLevel = Math.random() * 5;
+          log(DOM.systemLog, `Calibration complete • Interference: ${this.interferenceLevel.toFixed(2)}%`, 'success');
+          DOM.codecStatus.innerHTML = `🟢 Calibrated • ${Math.round(this.signalStrength)}% • I:${this.interferenceLevel.toFixed(1)}%`;
+        }, 1500);
+        
+        return true;
+      }
+
+      encode(neuralSignal, frequency, txPower) {
+        if (!this.attached) return null;
+        
+        const baseCode = neuralSignal % 100000;
+        const freqModulation = Math.floor(frequency * 1.5);
+        const powerAmplification = txPower * 100;
+        
+        const encoded = (baseCode * freqModulation + powerAmplification) % 1000000;
+        const matrixIndex = encoded % this.encodingMatrix.length;
+        const finalCode = Math.abs(Math.round(encoded + this.encodingMatrix[matrixIndex]));
+        
+        this.signalStrength = Math.min(100, this.signalStrength + Math.random() * 2 - 1);
+        
+        return {
+          rawSignal: neuralSignal,
+          encodedSignal: finalCode,
+          frequency: frequency,
+          txPower: txPower,
+          signalStrength: this.signalStrength,
+          timestamp: Date.now()
+        };
+      }
+
+      transmit(encodedData, targetKeyCode) {
+        if (!this.attached || !this.calibrated) {
+          log(DOM.systemLog, 'Transmission failed: DAC not ready', 'error');
+          return {success: false, error: 'DAC_NOT_READY'};
+        }
+
+        const transmissionDelay = 50 + Math.random() * 100;
+        const successProbability = this.signalStrength / 100 * (1 - this.interferenceLevel / 100);
+        
+        setTimeout(() => {
+          if (Math.random() < successProbability) {
+            log(DOM.systemLog, `✅ TX Success: ${targetKeyCode}`, 'success');
+            updateNeuralMeter(this.signalStrength);
+          } else {
+            log(DOM.systemLog, `⚠️ TX Degraded: ${Math.round(successProbability * 100)}%`, 'warning');
+          }
+        }, transmissionDelay);
+
+        return {
+          success: true,
+          quality: successProbability * 100,
+          delay: transmissionDelay,
+          encodedData: encodedData
+        };
+      }
+    }
+
+    const codec = new DigitalAnalogueCodec();
+
+    // ==================== NEURAL SIGNAL PROCESSING ====================
+    function detectImpulseFromThought(text) {
+      if (!text || text.trim().length === 0) return 0;
+      
+      let charSum = 0;
+      let vowelCount = 0;
+      let consonantCount = 0;
+      const vowels = 'aeiouAEIOU';
+      
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        charSum += char.charCodeAt(0);
+        if (vowels.includes(char)) vowelCount++;
+        else if (/[a-zA-Z]/.test(char)) consonantCount++;
+      }
+      
+      const lengthFactor = text.length * 2.7;
+      const charFactor = (charSum / text.length) * 1.3;
+      const vowelRatio = vowelCount / (vowelCount + consonantCount + 1) * 100;
+      
+      const baseImpulse = Math.abs(Math.round(charFactor + lengthFactor + vowelRatio));
+      
+      const candidates = Object.values(IMPULSE_MAP);
+      const closest = candidates.reduce((a, b) => 
+        Math.abs(b - baseImpulse) < Math.abs(a - baseImpulse) ? b : a, 
+        candidates[0]
+      );
+      
+      const finalImpulse = Math.round((baseImpulse * 0.6 + closest * 0.4));
+      
+      session.lastImpulse = finalImpulse;
+      return finalImpulse;
+    }
+
+    function convertImpulseToActionPotential(impulse) {
+      const frequency = parseFloat(DOM.neuralFreq.value);
+      const freqModifier = frequency / 50;
+      
+      const baseAP = impulse * 1.35;
+      const freqAdjusted = baseAP * freqModifier;
+      const randomNoise = (Math.random() - 0.5) * 5;
+      
+      const actionPotential = Math.round(freqAdjusted + 25 + randomNoise);
+      
+      session.lastActionPotential = actionPotential;
+      return actionPotential;
+    }
+
+    function calculateNeuralSync(impulse, actionPotential) {
+      const expectedAP = impulse * 1.35 + 25;
+      const deviation = Math.abs(actionPotential - expectedAP);
+      const maxDeviation = 50;
+      
+      const syncLevel = Math.max(0, Math.min(100, 100 - (deviation / maxDeviation * 100)));
+      
+      session.neuralSyncLevel = syncLevel;
+      return syncLevel;
+    }
+
+    // ==================== AANIC PROCESSOR ====================
+    function processWithAANIC(input) {
+      if (!input || input.trim().length === 0) {
+        log(DOM.aanicOutput, 'No input for AANIC', 'warning');
+        return null;
+      }
+
+      log(DOM.aanicOutput, `Processing: "${input.substring(0, 40)}..."`, 'neural');
+
+      const detected = detectImpulseFromThought(input);
+      const actionPotential = convertImpulseToActionPotential(detected);
+      const neuralSync = calculateNeuralSync(detected, actionPotential);
+      const frequency = parseFloat(DOM.neuralFreq.value);
+
+      // Word synthesis
+      const words = input.split(/\s+/).map(w => {
+        if (w.length <= 2) return w;
+        return w[0] + 'er' + w.slice(-1);
+      }).join(' ');
+
+      // Emotion detection
+      const lowerInput = input.toLowerCase();
+      let emotion = 'Neutral';
+      if (['call', 'help', 'urgent', 'emergency'].some(e => lowerInput.includes(e))) emotion = 'Urgent';
+      if (['send', 'message', 'text'].some(e => lowerInput.includes(e))) emotion = 'Communicative';
+      if (['connect', 'offer', 'answer'].some(e => lowerInput.includes(e))) emotion = 'Technical';
+
+      const result = {
+        input,
+        detected,
+        actionPotential,
+        neuralSync,
+        words,
+        emotion,
+        frequency
+      };
+
+      if (codec.attached) {
+        const txPower = parseFloat(DOM.txPower.value);
+        const encoded = codec.encode(detected, frequency, txPower);
+        result.encoded = encoded;
+        log(DOM.aanicOutput, `DAC: ${encoded.encodedSignal} @ ${frequency}Hz`, 'success');
+      }
+
+      session.events.unshift({t: Date.now(), type: 'aanic', payload: result});
+      
+      log(DOM.aanicOutput, `Output: "${words}" • ${emotion}`, 'success');
+      log(DOM.aanicOutput, `Impulse:${detected} AP:${actionPotential}mV Sync:${neuralSync.toFixed(0)}%`, 'info');
+
+      DOM.impulseCode.textContent = detected;
+      DOM.actionPotential.textContent = actionPotential + 'mV';
+      DOM.neuralSync.textContent = neuralSync.toFixed(0) + '%';
+
+      renderApps(actionPotential);
+      
+      return result;
+    }
+
+    // ==================== CNB PROCESSOR ====================
+    function processWithCNB(input) {
+      if (!codec.attached) {
+        log(DOM.cnbOutput, 'CNB ERROR: DAC not attached', 'error');
+        return {error: 'NO_DAC'};
+      }
+
+      log(DOM.cnbOutput, 'CNB vector convergence...', 'info');
+
+      const frequency = parseFloat(DOM.neuralFreq.value);
+      const txPower = parseFloat(DOM.txPower.value);
+
+      const baseVector = Math.abs(Math.round(Math.random() * 100000));
+      const frequencyVector = Math.floor(frequency * 1000);
+      const powerVector = Math.floor(txPower * 10000);
+      
+      const convergenceCode = (baseVector + frequencyVector + powerVector) % 1000000;
+      const convergenceQuality = codec.signalStrength * (1 - codec.interferenceLevel / 100);
+
+      const result = {
+        cnbCode: convergenceCode,
+        quality: convergenceQuality,
+        timestamp: Date.now()
+      };
+
+      session.events.unshift({t: Date.now(), type: 'cnb', payload: result});
+
+      log(DOM.cnbOutput, `CNB Code: ${convergenceCode}`, 'success');
+      log(DOM.cnbOutput, `Quality: ${convergenceQuality.toFixed(2)}%`, 'success');
+
+      return result;
+    }
+
+    // ==================== APP RENDERING ====================
+    function renderApps(actionPotential) {
+      DOM.appsList.innerHTML = '';
+
+      const matches = Object.entries(IMPULSE_MAP)
+        .map(([appCode, impulse]) => ({
+          code: parseInt(appCode),
+          name: APP_CODES[appCode] || 'App ' + appCode,
+          impulse: impulse,
+          diff: Math.abs(impulse - (actionPotential / 1.35 - 25)),
+          confidence: Math.max(0, 100 - Math.abs(impulse - (actionPotential / 1.35 - 25)) * 2)
+        }))
+        .sort((a, b) => a.diff - b.diff)
+        .slice(0, 5);
+
+      matches.forEach(match => {
+        const el = document.createElement('div');
+        el.className = 'app-item';
+        
+        const confidenceColor = match.confidence > 80 ? 'var(--success)' : 
+                                 match.confidence > 50 ? 'var(--warning)' : 'var(--danger)';
+        
+        el.innerHTML = `
+          <div>
+            <strong>${match.name}</strong>
+            <div style="font-size:11px;color:var(--muted);">
+              Impulse ${match.impulse} • Δ${match.diff.toFixed(1)} • 
+              <span style="color:${confidenceColor}">${match.confidence.toFixed(0)}%</span>
+            </div>
+          </div>
+          <div>
+            <button data-app='${match.code}'>Run</button>
+          </div>
+        `;
+        
+        DOM.appsList.appendChild(el);
+        
+        el.querySelector('button').addEventListener('click', () => {
+          runApp(match.code, match.name);
+        });
+      });
+    }
+
+    // ==================== APP EXECUTION ====================
+    function runApp(code, name) {
+      const appName = name || APP_CODES[code] || ('App ' + code);
+      
+      log(DOM.systemLog, `[EXEC] ${appName}`, 'neural');
+
+      // Special handling for WebRTC apps
+      if (code === 50) { // WebRTC Call
+        if (session.selectedContact) {
+          initiateCall(session.selectedContact);
+        } else {
+          log(DOM.systemLog, 'Select contact first', 'warning');
+        }
+        return;
+      }
+
+      if (code === 51) { // WebRTC Chat
+        if (session.dataChannel && session.dataChannel.readyState === 'open') {
+          DOM.messageInput.focus();
+        } else {
+          log(DOM.systemLog, 'Establish connection first', 'warning');
+        }
+        return;
+      }
+
+      const xcoverCmd = XCOVER_KEY_CODES[code];
+      if (xcoverCmd) {
+        log(DOM.systemLog, `[XCOVER] ${xcoverCmd.action} [${xcoverCmd.code}]`, 'success');
+        
+        if (codec.attached && codec.calibrated) {
+          const frequency = parseFloat(DOM.neuralFreq.value);
+          const txPower = parseFloat(DOM.txPower.value);
+          const encoded = codec.encode(session.lastImpulse, frequency, txPower);
+          codec.transmit(encoded, xcoverCmd.code);
+        }
+      }
+
+      session.events.unshift({
+        t: Date.now(),
+        type: 'runApp',
+        app: code,
+        name: appName,
+        xcoverCode: xcoverCmd ? xcoverCmd.code : null
+      });
+
+      drawWave(appName + code);
+    }
+
+    // ==================== NEURAL ACTION EXECUTOR ====================
+    function executeNeuralAction() {
+      const thought = DOM.thoughtInput.value.trim().toLowerCase();
+      
+      if (!thought) {
+        log(DOM.systemLog, 'No thought to execute', 'warning');
+        return;
+      }
+
+      log(DOM.systemLog, `[NEURAL ACTION] Processing: "${thought}"`, 'neural');
+
+      // Parse intent from thought
+      if (thought.includes('call') || thought.includes('phone')) {
+        const contactName = extractContactName(thought);
+        if (contactName) {
+          const contact = session.contacts.find(c => 
+            c.name.toLowerCase().includes(contactName.toLowerCase())
+          );
+          if (contact) {
+            selectContact(contact);
+            initiateCall(contact);
+            return;
+          }
+        }
+        log(DOM.systemLog, 'Contact not found for call', 'warning');
+      }
+
+      if (thought.includes('message') || thought.includes('text') || thought.includes('send')) {
+        const msg = extractMessage(thought);
+        if (msg && session.dataChannel && session.dataChannel.readyState === 'open') {
+          sendMessage(msg);
+          return;
+        }
+        log(DOM.systemLog, 'Cannot send message - not connected', 'warning');
+      }
+
+      if (thought.includes('offer') || thought.includes('connect')) {
+        createWebRTCOffer();
+        return;
+      }
+
+      if (thought.includes('answer')) {
+        createWebRTCAnswer();
+        return;
+      }
+
+      if (thought.includes('camera') || thought.includes('photo') || thought.includes('selfie')) {
+        runPrototypeTest(23, '08284823', 'Open Camera');
+        return;
+      }
+
+      if (thought.includes('music') || thought.includes('play')) {
+        runPrototypeTest(34, '08284829', 'Open Music');
+        setTimeout(() => runPrototypeTest(35, '08284830', 'Play Track'), 500);
+        return;
+      }
+
+      // Default: process with AANIC
+      processWithAANIC(thought);
+    }
+
+    function extractContactName(thought) {
+      const words = thought.split(/\s+/);
+      const callIndex = words.findIndex(w => w === 'call' || w === 'phone');
+      if (callIndex >= 0 && callIndex < words.length - 1) {
+        return words[callIndex + 1];
+      }
+      return null;
+    }
+
+    function extractMessage(thought) {
+      const patterns = [
+        /(?:send|message|text)\s+(.+)/i,
+        /(?:say|tell)\s+(.+)/i
+      ];
+      
+      for (const pattern of patterns) {
+        const match = thought.match(pattern);
+        if (match && match[1]) {
+          return match[1].trim();
+        }
+      }
+      return null;
+    }
+
+    // ==================== CONTACT MANAGEMENT ====================
+    function addContact() {
+      const name = DOM.newContactName.value.trim();
+      if (!name) {
+        alert('Enter contact name');
+        return;
+      }
+
+      const contact = {
+        id: 'CT-' + Math.random().toString(36).substr(2, 6),
+        name: name,
+        token: 'AUGVT-' + Math.random().toString(36).substr(2, 8).toUpperCase(),
+        created: Date.now()
+      };
+
+      session.contacts.push(contact);
+      saveContacts();
+      renderContacts();
+      DOM.newContactName.value = '';
+      
+      log(DOM.systemLog, `Contact added: ${name}`, 'success');
+    }
+
+    function renderContacts() {
+      DOM.contactList.innerHTML = '';
+      
+      if (session.contacts.length === 0) {
+        DOM.contactList.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);">No contacts yet</div>';
+        return;
+      }
+
+      session.contacts.forEach(contact => {
+        const el = document.createElement('div');
+        el.className = 'contact-item';
+        if (session.selectedContact && session.selectedContact.id === contact.id) {
+          el.classList.add('selected');
+        }
+        
+        el.innerHTML = `
+          <div class="name">${contact.name}</div>
+          <div class="token">${contact.id} • ${contact.token}</div>
+          <div class="actions">
+            <button class="btn-select" data-id="${contact.id}">Select</button>
+            <button class="btn-call" data-id="${contact.id}">📞</button>
+            <button class="btn-delete danger" data-id="${contact.id}">🗑️</button>
+          </div>
+        `;
+        
+        DOM.contactList.appendChild(el);
+      });
+
+      // Event listeners
+      DOM.contactList.querySelectorAll('.btn-select').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const id = e.target.dataset.id;
+          const contact = session.contacts.find(c => c.id === id);
+          if (contact) selectContact(contact);
+        });
+      });
+
+      DOM.contactList.querySelectorAll('.btn-call').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const id = e.target.dataset.id;
+          const contact = session.contacts.find(c => c.id === id);
+          if (contact) {
+            selectContact(contact);
+            initiateCall(contact);
+          }
+        });
+      });
+
+      DOM.contactList.querySelectorAll('.btn-delete').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const id = e.target.dataset.id;
+          if (confirm('Delete this contact?')) {
+            session.contacts = session.contacts.filter(c => c.id !== id);
+            saveContacts();
+            renderContacts();
+            log(DOM.systemLog, 'Contact deleted', 'warning');
+          }
+        });
+      });
+    }
+
+    function selectContact(contact) {
+      session.selectedContact = contact;
+      DOM.activeContact.value = contact.name;
+      DOM.chatWith.textContent = contact.name;
+      renderContacts();
+      log(DOM.systemLog, `Selected: ${contact.name}`, 'success');
+    }
+
+    // ==================== WEBRTC FUNCTIONS ====================
+    function createWebRTCOffer() {
+      if (!session.selectedContact) {
+        alert('Select a contact first');
+        return;
+      }
+
+      log(DOM.systemLog, 'Creating WebRTC offer...', 'webrtc');
+
+      const config = {
+        iceServers: [{urls: 'stun:stun.l.google.com:19302'}]
+      };
+
+      session.peerConnection = new RTCPeerConnection(config);
+
+      // Create data channel
+      session.dataChannel = session.peerConnection.createDataChannel('augvt-neural', {
+        ordered: true
+      });
+
+      setupDataChannel(session.dataChannel);
+
+      // ICE candidate handling
+      session.peerConnection.onicecandidate = (event) => {
+        if (event.candidate === null) {
+          // All ICE candidates gathered
+          const offer = session.peerConnection.localDescription;
+          session.localOffer = offer;
+          DOM.signalingBox.textContent = JSON.stringify(offer, null, 2);
+          log(DOM.systemLog, 'Offer ready - copy and send to peer', 'webrtc');
+        }
+      };
+
+      // Create offer
+      session.peerConnection.createOffer()
+        .then(offer => session.peerConnection.setLocalDescription(offer))
+        .catch(err => log(DOM.systemLog, 'Offer error: ' + err.message, 'error'));
+
+      updateConnectionStatus();
+    }
+
+    function createWebRTCAnswer() {
+      const offerText = prompt('Paste the offer from peer:');
+      if (!offerText) return;
+
+      try {
+        const offer = JSON.parse(offerText);
+        
+        log(DOM.systemLog, 'Creating WebRTC answer...', 'webrtc');
+
+        const config = {
+          iceServers: [{urls: 'stun:stun.l.google.com:19302'}]
+        };
+
+        session.peerConnection = new RTCPeerConnection(config);
+
+        // Handle incoming data channel
+        session.peerConnection.ondatachannel = (event) => {
+          session.dataChannel = event.channel;
+          setupDataChannel(session.dataChannel);
+        };
+
+        // ICE candidate handling
+        session.peerConnection.onicecandidate = (event) => {
+          if (event.candidate === null) {
+            const answer = session.peerConnection.localDescription;
+            session.localAnswer = answer;
+            DOM.signalingBox.textContent = JSON.stringify(answer, null, 2);
+            log(DOM.systemLog, 'Answer ready - copy and send back', 'webrtc');
+          }
+        };
+
+        // Set remote offer and create answer
+        session.peerConnection.setRemoteDescription(new RTCSessionDescription(offer))
+          .then(() => session.peerConnection.createAnswer())
+          .then(answer => session.peerConnection.setLocalDescription(answer))
+          .catch(err => log(DOM.systemLog, 'Answer error: ' + err.message, 'error'));
+
+        updateConnectionStatus();
+
+      } catch (err) {
+        log(DOM.systemLog, 'Invalid offer format', 'error');
+      }
+    }
+
+    function pasteAndConnect() {
+      const signalText = prompt('Paste the Answer/Offer from peer:');
+      if (!signalText) return;
+
+      try {
+        const signal = JSON.parse(signalText);
+        
+        if (!session.peerConnection) {
+          alert('Create an offer first');
+          return;
+        }
+
+        log(DOM.systemLog, 'Connecting with peer signal...', 'webrtc');
+
+        session.peerConnection.setRemoteDescription(new RTCSessionDescription(signal))
+          .then(() => {
+            log(DOM.systemLog, 'Remote description set - connecting...', 'webrtc');
+            updateConnectionStatus();
+          })
+          .catch(err => log(DOM.systemLog, 'Connection error: ' + err.message, 'error'));
+
+      } catch (err) {
+        log(DOM.systemLog, 'Invalid signal format', 'error');
+      }
+    }
+
+    function setupDataChannel(channel) {
+      channel.onopen = () => {
+        log(DOM.systemLog, '✅ Data channel OPEN', 'success');
+        DOM.dcStatus.textContent = 'Open';
+        DOM.dcStatus.style.color = 'var(--success)';
+        updateConnectionStatus();
+      };
+
+      channel.onclose = () => {
+        log(DOM.systemLog, 'Data channel closed', 'warning');
+        DOM.dcStatus.textContent = 'Closed';
+        DOM.dcStatus.style.color = 'var(--danger)';
+        updateConnectionStatus();
+      };
+
+      channel.onerror = (err) => {
+        log(DOM.systemLog, 'Data channel error', 'error');
+      };
+
+      channel.onmessage = (event) => {
+        receiveMessage(event.data);
+      };
+    }
+
+    function updateConnectionStatus() {
+      if (!session.peerConnection) {
+        DOM.connStatus.textContent = 'Disconnected';
+        DOM.connStatus.style.color = 'var(--muted)';
+        return;
+      }
+
+      const state = session.peerConnection.connectionState;
+      DOM.connStatus.textContent = state;
+      
+      if (state === 'connected') {
+        DOM.connStatus.style.color = 'var(--success)';
+      } else if (state === 'connecting') {
+        DOM.connStatus.style.color = 'var(--warning)';
+      } else {
+        DOM.connStatus.style.color = 'var(--danger)';
+      }
+    }
+
+    // ==================== MESSAGING ====================
+    function sendMessage(text) {
+      if (!text) text = DOM.messageInput.value.trim();
+      if (!text) return;
+
+      if (!session.dataChannel || session.dataChannel.readyState !== 'open') {
+        log(DOM.systemLog, 'Cannot send - channel closed', 'error');
+        return;
+      }
+
+      const message = {
+        type: 'message',
+        text: text,
+        sender: 'me',
+        timestamp: Date.now()
+      };
+
+      session.dataChannel.send(JSON.stringify(message));
+      displayMessage(message, 'sent');
+      DOM.messageInput.value = '';
+      
+      log(DOM.systemLog, `Message sent: ${text.substring(0, 30)}...`, 'success');
+    }
+
+    function receiveMessage(data) {
+      try {
+        const message = JSON.parse(data);
+        
+        if (message.type === 'message') {
+          displayMessage(message, 'received');
+          log(DOM.systemLog, `Message received from ${session.selectedContact?.name || 'peer'}`, 'success');
+        } else if (message.type === 'call-request') {
+          handleIncomingCall(message);
+        } else if (message.type === 'call-accept') {
+          log(DOM.systemLog, 'Call accepted', 'success');
+          session.inCall = true;
+        } else if (message.type === 'call-reject') {
+          log(DOM.systemLog, 'Call rejected', 'warning');
+          endCall();
+        } else if (message.type === 'call-end') {
+          log(DOM.systemLog, 'Call ended by peer', 'warning');
+          endCall();
+        }
+      } catch (err) {
+        log(DOM.systemLog, 'Received invalid data', 'error');
+      }
+    }
+
+    function displayMessage(message, direction) {
+      const el = document.createElement('div');
+      el.className = 'message ' + direction;
+      
+      const time = new Date(message.timestamp).toLocaleTimeString();
+      
+      el.innerHTML = `
+        <div class="text">${escapeHTML(message.text)}</div>
+        <div class="time">${time}</div>
+      `;
+      
+      DOM.chatArea.appendChild(el);
+      DOM.chatArea.scrollTop = DOM.chatArea.scrollHeight;
+    }
+
+    function escapeHTML(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // ==================== CALLING ====================
+    function initiateCall(contact) {
+      if (!session.dataChannel || session.dataChannel.readyState !== 'open') {
+        alert('Establish WebRTC connection first');
+        return;
+      }
+
+      log(DOM.systemLog, `Initiating call to ${contact.name}...`, 'webrtc');
+
+      const callRequest = {
+        type: 'call-request',
+        caller: 'Me',
+        timestamp: Date.now()
+      };
+
+      session.dataChannel.send(JSON.stringify(callRequest));
+      session.inCall = true;
+      session.callType = 'outgoing';
+      
+      showCallOverlay(contact.name, 'Calling...');
+    }
+
+    function handleIncomingCall(message) {
+      log(DOM.systemLog, `Incoming call from ${message.caller}`, 'webrtc');
+      
+      session.callType = 'incoming';
+      showCallOverlay(message.caller, 'Incoming Call');
+    }
+
+    function acceptCall() {
+      if (!session.dataChannel) return;
+
+      const response = {
+        type: 'call-accept',
+        timestamp: Date.now()
+      };
+
+      session.dataChannel.send(JSON.stringify(response));
+      
+      session.inCall = true;
+      log(DOM.systemLog, 'Call accepted', 'success');
+      
+      // Update overlay to "In Call"
+      DOM.callStatus.textContent = 'Connected';
+      setTimeout(() => {
+        hideCallOverlay();
+      }, 2000);
+    }
+
+    function rejectCall() {
+      if (!session.dataChannel) return;
+
+      const response = {
+        type: 'call-reject',
+        timestamp: Date.now()
+      };
+
+      session.dataChannel.send(JSON.stringify(response));
+      
+      log(DOM.systemLog, 'Call rejected', 'warning');
+      hideCallOverlay();
+    }
+
+    function endCall() {
+      if (session.inCall && session.dataChannel && session.dataChannel.readyState === 'open') {
+        const endMessage = {
+          type: 'call-end',
+          timestamp: Date.now()
+        };
+        session.dataChannel.send(JSON.stringify(endMessage));
+      }
+
+      session.inCall = false;
+      session.callType = null;
+      log(DOM.systemLog, 'Call ended', 'info');
+      hideCallOverlay();
+    }
+
+    function simulateIncomingCall() {
+      if (!session.selectedContact) {
+        alert('Select a contact first');
+        return;
+      }
+
+      log(DOM.systemLog, 'Simulating incoming call...', 'test');
+      
+      const fakeMessage = {
+        type: 'call-request',
+        caller: session.selectedContact.name,
+        timestamp: Date.now()
+      };
+
+      handleIncomingCall(fakeMessage);
+    }
+
+    function showCallOverlay(callerName, status) {
+      DOM.callerName.textContent = callerName;
+      DOM.callStatus.textContent = status;
+      DOM.callOverlay.classList.add('active');
+      
+      // Play notification sound (simulated)
+      playGeneratedVoice('Incoming call from ' + callerName);
+    }
+
+    function hideCallOverlay() {
+      DOM.callOverlay.classList.remove('active');
+    }
+
+    // ==================== PROTOTYPE TESTING ====================
+    function runPrototypeTest(key, code, action) {
+      log(DOM.prototypeLog, `[TEST] ${action}`, 'test');
+      log(DOM.prototypeLog, `[KEY ${key}] Code: ${code}`, 'test');
+
+      if (codec.attached && codec.calibrated) {
+        const frequency = parseFloat(DOM.neuralFreq.value);
+        const txPower = parseFloat(DOM.txPower.value);
+        
+        const syntheticImpulse = 50 + parseInt(key) * 3;
+        const encoded = codec.encode(syntheticImpulse, frequency, txPower);
+        
+        log(DOM.prototypeLog, `[DAC] ${encoded.encodedSignal} @ ${frequency}Hz`, 'test');
+        
+        const transmission = codec.transmit(encoded, code);
+        
+        if (transmission.success) {
+          log(DOM.prototypeLog, `[SUCCESS] TX Quality: ${transmission.quality.toFixed(1)}%`, 'success');
+          log(DOM.systemLog, `✅ Xcover: ${action} [${code}]`, 'success');
+        } else {
+          log(DOM.prototypeLog, `[FAILED] ${transmission.error}`, 'error');
+        }
+      } else {
+        log(DOM.prototypeLog, `[SIMULATED] Code ${code}`, 'test');
+      }
+
+      session.events.unshift({
+        t: Date.now(),
+        type: 'prototypeTest',
+        key,
+        code,
+        action
+      });
+
+      drawWave('test' + key + code);
+      updateNeuralMeter(70 + Math.random() * 30);
+    }
+
+    // ==================== VISUALIZATION ====================
+    function drawWave(seedStr) {
+      const w = DOM.waveCanvas.width;
+      const h = DOM.waveCanvas.height;
+      
+      ctx.clearRect(0, 0, w, h);
+      
+      const seed = (seedStr || '').split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+      const frequency = parseFloat(DOM.neuralFreq.value);
+      const syncLevel = session.neuralSyncLevel / 100;
+      
+      // Main waveform
+      ctx.lineWidth = 2.5 * devicePixelRatio;
+      ctx.strokeStyle = `rgba(110, 231, 183, ${0.7 + syncLevel * 0.3})`;
+      ctx.beginPath();
+      
+      for (let x = 0; x < w; x++) {
+        const t = x / w;
+        const wave1 = Math.sin(t * frequency * 0.5 + seed * 0.0001) * (h * 0.15);
+        const wave2 = Math.sin(t * frequency * 0.3 + seed * 0.00007) * (h * 0.08);
+        const wave3 = Math.cos(t * frequency * 0.7 + seed * 0.00013) * (h * 0.05);
+        const noise = (Math.random() - 0.5) * (h * 0.02) * (1 - syncLevel);
+        
+        const y = h * 0.5 + wave1 + wave2 + wave3 + noise;
+        
+        if (x === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      
+      // Harmonics
+      ctx.globalAlpha = 0.3;
+      ctx.strokeStyle = '#8b5cf6';
+      ctx.lineWidth = 1.5 * devicePixelRatio;
+      ctx.beginPath();
+      
+      for (let x = 0; x < w; x++) {
+        const t = x / w;
+        const y = h * 0.5 + Math.sin(t * frequency * 0.8 + seed * 0.0002) * (h * 0.1);
+        if (x === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      
+      // WebRTC indicator (if connected)
+      if (session.dataChannel && session.dataChannel.readyState === 'open') {
+        ctx.globalAlpha = 0.5;
+        ctx.strokeStyle = '#3b82f6';
+        ctx.lineWidth = 1 * devicePixelRatio;
+        ctx.beginPath();
+        
+        for (let x = 0; x < w; x++) {
+          const t = x / w;
+          const y = h * 0.5 + Math.cos(t * 20 + Date.now() * 0.005) * (h * 0.05);
+          if (x === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+      
+      ctx.globalAlpha = 1;
+    }
+
+    function updateNeuralMeter(value) {
+      const clampedValue = Math.max(0, Math.min(100, value));
+      DOM.neuralMeter.style.width = clampedValue + '%';
+      DOM.neuralMeter.textContent = Math.round(clampedValue) + '%';
+    }
+
+    function updateSystemStatus(active) {
+      if (active) {
+        DOM.systemStatus.className = 'status-indicator status-active';
+      } else {
+        DOM.systemStatus.className = 'status-indicator status-inactive';
+      }
+    }
+
+    // ==================== AUDIO SYNTHESIS ====================
+    let audioCtx = null;
+    let oscillator = null;
+    let gainNode = null;
+
+    function ensureAudioContext() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        gainNode = audioCtx.createGain();
+        gainNode.gain.value = 0.05;
+        gainNode.connect(audioCtx.destination);
+      }
+    }
+
+    function playGeneratedVoice(text) {
+      if ('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 0.9;
+        utterance.pitch = 1.0;
+        utterance.volume = 0.7;
+        
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(utterance);
+        
+        log(DOM.systemLog, '🔊 Voice synthesized', 'success');
+        return;
+      }
+      
+      // Fallback
+      ensureAudioContext();
+      
+      if (oscillator) {
+        oscillator.stop();
+        oscillator = null;
+      }
+      
+      oscillator = audioCtx.createOscillator();
+      oscillator.type = 'sine';
+      oscillator.frequency.value = 440 + session.lastImpulse;
+      oscillator.connect(gainNode);
+      oscillator.start();
+      
+      setTimeout(() => {
+        if (oscillator) {
+          oscillator.stop();
+          oscillator = null;
+        }
+      }, 1500);
+      
+      log(DOM.systemLog, '🔊 Neural tone generated', 'info');
+    }
+
+    function stopAudio() {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+      if (oscillator) {
+        oscillator.stop();
+        oscillator = null;
+      }
+    }
+
+    // ==================== STREAMING MODE ====================
+    let streamInterval = null;
+
+    function toggleStreaming() {
+      session.streaming = !session.streaming;
+      
+      if (session.streaming) {
+        log(DOM.systemLog, '🌊 Neural streaming STARTED', 'success');
+        
+        streamInterval = setInterval(() => {
+          const syntheticThoughts = [
+            'monitoring connection',
+            'checking signal quality',
+            'neural sync active',
+            'webrtc status ok'
+          ];
+          const thought = syntheticThoughts[Math.floor(Math.random() * syntheticThoughts.length)];
+          drawWave(thought);
+          
+          // Update connection status
+          updateConnectionStatus();
+        }, 2000);
+      } else {
+        log(DOM.systemLog, '🌊 Neural streaming STOPPED', 'warning');
+        if (streamInterval) {
+          clearInterval(streamInterval);
+          streamInterval = null;
+        }
+      }
+    }
+
+    // ==================== EMERGENCY PROTOCOL ====================
+    function triggerEmergency() {
+      log(DOM.systemLog, '🚨 EMERGENCY PROTOCOL ACTIVATED', 'error');
+      log(DOM.prototypeLog, '[EMERGENCY] Emergency sequence...', 'error');
+      
+      // Try to send emergency message via WebRTC if connected
+      if (session.dataChannel && session.dataChannel.readyState === 'open') {
+        const emergencyMsg = {
+          type: 'message',
+          text: '🚨 EMERGENCY ALERT - Assistance needed',
+          sender: 'me',
+          timestamp: Date.now()
+        };
+        session.dataChannel.send(JSON.stringify(emergencyMsg));
+        displayMessage(emergencyMsg, 'sent');
+      }
+
+      // Execute Xcover emergency sequence
+      if (codec.attached) {
+        const emergencySequence = [
+          {key: 3, code: '0898286', action: 'Power On'},
+          {key: 6, code: '0868283', action: 'Enter PIN'},
+          {key: 7, code: '0828728', action: 'Open Dialer'},
+          {key: 9, code: '08286386', action: 'Emergency Call'}
+        ];
+        
+        emergencySequence.forEach((step, index) => {
+          setTimeout(() => {
+            runPrototypeTest(step.key, step.code, step.action);
+          }, index * 500);
+        });
+      }
+      
+      playGeneratedVoice('Emergency protocol activated');
+    }
+
+    // ==================== UTILITY FUNCTIONS ====================
+    function copyToClipboard(text) {
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(text)
+          .then(() => log(DOM.systemLog, 'Copied to clipboard', 'success'))
+          .catch(() => log(DOM.systemLog, 'Copy failed', 'error'));
+      } else {
+        // Fallback
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        try {
+          document.execCommand('copy');
+          log(DOM.systemLog, 'Copied to clipboard', 'success');
+        } catch (err) {
+          log(DOM.systemLog, 'Copy failed', 'error');
+        }
+        document.body.removeChild(textarea);
+      }
+    }
+
+    // ==================== EVENT LISTENERS ====================
+    
+    // Neural Interface Controls
+    document.getElementById('btnDecode').addEventListener('click', () => {
+      const text = DOM.thoughtInput.value.trim();
+      if (!text) {
+        alert('Enter a thought to process');
+        return;
+      }
+      
+      const result = processWithAANIC(text);
+      if (result && result.words) {
+        playGeneratedVoice(result.words);
+        drawWave(text);
+      }
+    });
+
+    document.getElementById('btnCNB').addEventListener('click', () => {
+      const text = DOM.thoughtInput.value.trim();
+      processWithCNB(text);
+      drawWave(text || 'cnb');
+    });
+
+    document.getElementById('btnNeuralAction').addEventListener('click', () => {
+      executeNeuralAction();
+    });
+
+    // DAC Controls
+    document.getElementById('attachDA').addEventListener('click', () => {
+      codec.attach();
+      session.attachedDA = true;
+    });
+
+    document.getElementById('detachDA').addEventListener('click', () => {
+      codec.detach();
+      session.attachedDA = false;
+    });
+
+    document.getElementById('calibrateDA').addEventListener('click', () => {
+      codec.calibrate();
+    });
+
+    // System Controls
+    document.getElementById('btnStream').addEventListener('click', toggleStreaming);
+
+    document.getElementById('btnPlayAudio').addEventListener('click', () => {
+      const lastEvent = session.events.find(e => e.type === 'aanic');
+      const text = lastEvent ? lastEvent.payload.words : (DOM.thoughtInput.value || 'Neural interface active');
+      playGeneratedVoice(text);
+    });
+
+    document.getElementById('btnEmergency').addEventListener('click', () => {
+      if (confirm('Activate Emergency Protocol?')) {
+        triggerEmergency();
+      }
+    });
+
+    document.getElementById('btnClear').addEventListener('click', () => {
+      DOM.aanicOutput.innerText = '🟢 AANIC ready...';
+      DOM.cnbOutput.innerText = '🟡 CNB ready...';
+      DOM.systemLog.innerText = '🟢 [INIT] Neural-WebRTC system initialized.';
+      DOM.prototypeLog.innerText = '🟢 Xcover ready...';
+      DOM.appsList.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);">Process thought to see matches...</div>';
+      DOM.impulseCode.textContent = '--';
+      DOM.actionPotential.textContent = '--';
+      DOM.neuralSync.textContent = '0%';
+      updateNeuralMeter(0);
+    });
+
+    // Contact Management
+    document.getElementById('btnAddContact').addEventListener('click', addContact);
+
+    DOM.newContactName.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        addContact();
+      }
+    });
+
+    // WebRTC Controls
+    document.getElementById('btnCreateOffer').addEventListener('click', createWebRTCOffer);
+    document.getElementById('btnCreateAnswer').addEventListener('click', createWebRTCAnswer);
+    document.getElementById('btnPasteSignal').addEventListener('click', pasteAndConnect);
+
+    document.getElementById('btnCopySignal').addEventListener('click', () => {
+      const text = DOM.signalingBox.textContent;
+      if (text && text !== 'Click Create Offer/Answer to generate...') {
+        copyToClipboard(text);
+      } else {
+        alert('No signal data to copy');
+      }
+    });
+
+    // Messaging
+    document.getElementById('btnSendMessage').addEventListener('click', () => {
+      sendMessage();
+    });
+
+    DOM.messageInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    // Call Controls
+    document.getElementById('btnStartCall').addEventListener('click', () => {
+      if (session.selectedContact) {
+        initiateCall(session.selectedContact);
+      } else {
+        alert('Select a contact first');
+      }
+    });
+
+    document.getElementById('btnEndCall').addEventListener('click', endCall);
+    document.getElementById('btnSimulateIncoming').addEventListener('click', simulateIncomingCall);
+
+    // Call Overlay Controls
+    document.getElementById('btnAcceptCall').addEventListener('click', acceptCall);
+    document.getElementById('btnRejectCall').addEventListener('click', rejectCall);
+
+    // Xcover Prototype Test Buttons
+    document.querySelectorAll('.xcover-controls button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const key = btn.dataset.key;
+        const code = btn.dataset.code;
+        const action = btn.textContent;
+        
+        if (key && code) {
+          runPrototypeTest(key, code, action);
+        }
+      });
+    });
+
+    // Auto-process on Enter in thought input
+    DOM.thoughtInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter' && e.ctrlKey) {
+        e.preventDefault();
+        executeNeuralAction();
+      } else if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        document.getElementById('btnDecode').click();
+      }
+    });
+
+    // Connection state monitoring
+    setInterval(() => {
+      if (session.peerConnection) {
+        updateConnectionStatus();
+      }
+    }, 3000);
+
+    // Continuous waveform animation
+    let animationRunning = false;
+    function animateWave() {
+      if (!animationRunning) return;
+      
+      const currentSeed = 'live' + Date.now();
+      drawWave(currentSeed);
+      
+      requestAnimationFrame(animateWave);
+    }
+
+    // Start animation when streaming or when data channel is open
+    setInterval(() => {
+      const shouldAnimate = session.streaming || 
+                           (session.dataChannel && session.dataChannel.readyState === 'open');
+      
+      if (shouldAnimate && !animationRunning) {
+        animationRunning = true;
+        animateWave();
+      } else if (!shouldAnimate && animationRunning) {
+        animationRunning = false;
+      }
+    }, 500);
+
+    // ==================== INITIALIZATION ====================
+    function initialize() {
+      log(DOM.systemLog, '🟢 [INIT] AugVT Neural Interface V3.0', 'success');
+      log(DOM.systemLog, '🟢 [INIT] AANIC/CNB processors online', 'success');
+      log(DOM.systemLog, '🟢 [INIT] Digital Analogue Codec ready', 'success');
+      log(DOM.systemLog, '🟢 [INIT] WebRTC engine initialized', 'success');
+      log(DOM.systemLog, '🟢 [INIT] Xcover4 Key Code library loaded', 'success');
+      
+      loadContacts();
+      renderContacts();
+      renderApps(74);
+      drawWave('initialization');
+      updateNeuralMeter(0);
+      updateSystemStatus(false);
+      
+      // Clear chat area
+      DOM.chatArea.innerHTML = '<div style="text-align:center;color:var(--muted);padding:60px 20px;">Select contact and establish connection to chat</div>';
+      
+      log(DOM.prototypeLog, '🟢 [READY] All systems operational', 'success');
+      log(DOM.systemLog, '🟢 [READY] Think commands or use manual controls', 'info');
+      
+      // Welcome message
+      setTimeout(() => {
+        playGeneratedVoice('Neural interface ready. WebRTC system online.');
+      }, 1000);
+    }
+
+    // Start the system
+    initialize();
+
+    // Expose key functions for console debugging
+    window.augvt = {
+      session,
+      codec,
+      processWithAANIC,
+      processWithCNB,
+      executeNeuralAction,
+      createWebRTCOffer,
+      createWebRTCAnswer,
+      sendMessage,
+      initiateCall,
+      log: (msg, type) => log(DOM.systemLog, msg, type)
+    };
+
+    console.log('%c🧠 AugVT Neural Interface Ready', 'color: #6ee7b7; font-size: 16px; font-weight: bold;');
+    console.log('%cDebug interface available at: window.augvt', 'color: #8b5cf6;');
+
+  </script>
+</body>
+</html>
